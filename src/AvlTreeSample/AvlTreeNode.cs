@@ -6,15 +6,11 @@ namespace AvlTreeSample
 {
     public class AvlTreeNode
     {
-        public AvlTreeNode(int value)
-        {
-            Value = value;
-        }
-
-        public AvlTreeNode Parent { get; private set; }
-        public int Value { get; private set; }
-        public short BalanceFator { get; private set; }
-        public AvlTreeNode Left { get; private set; }
-        public AvlTreeNode Right { get; private set; }
+        public AvlTreeNode Parent { get; set; }
+        public AvlTreeNodePosition Position { get; set; }
+        public int Value { get; set; }
+        public short BalanceFator { get; set; }
+        public AvlTreeNode Left { get; set; }
+        public AvlTreeNode Right { get; set; }
     }
 }
