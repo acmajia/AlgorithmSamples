@@ -20,10 +20,29 @@ namespace AvlTreeSample
             return newNode;
         }
 
+        public IEnumerable<AvlTreeNode> Traverse(AvlTreeTraverseType traverseType)
+        {
+            if (Root == null)
+            {
+                return new List<AvlTreeNode>();
+            }
+
+            switch (traverseType)
+            {
+                case AvlTreeTraverseType.Preorder:
+                    return TraverseByPreorder();
+                case AvlTreeTraverseType.Inorder:
+                    return TraverseByInorder();
+                case AvlTreeTraverseType.Postorder:
+                    return TraverseByPostorder();
+                default:
+                    throw new NotSupportedException();
+            }
+        }
+
         private AvlTreeNode InsertNewNode(int value)
         {
             AvlTreeNode newNode = null;
-            short balanceFoctorChangeValue = 0;
             var currentNode = Root;
 
             while (true)
@@ -38,7 +57,6 @@ namespace AvlTreeSample
                     if (currentNode.Right == null)
                     {
                         newNode = CreateNewNode(currentNode, AvlTreeNodePosition.Right, value);
-                        balanceFoctorChangeValue = -1;
                         break;
                     }
                     else
@@ -52,7 +70,6 @@ namespace AvlTreeSample
                     if (currentNode.Left == null)
                     {
                         newNode = CreateNewNode(currentNode, AvlTreeNodePosition.Left, value);
-                        balanceFoctorChangeValue = +1;
                         break;
                     }
                     else
@@ -63,24 +80,9 @@ namespace AvlTreeSample
                 }
             }
 
-            OnBalanceFactorChanging(newNode, balanceFoctorChangeValue);
+            OnNewNodeInserted(newNode);
 
             return newNode;
-        }
-
-        public IEnumerable<AvlTreeNode> Traverse(AvlTreeTraverseType traverseType)
-        {
-            switch (traverseType)
-            {
-                case AvlTreeTraverseType.Preorder:
-                    return TraverseByPreorder();
-                case AvlTreeTraverseType.Inorder:
-                    return TraverseByInorder();
-                case AvlTreeTraverseType.Postorder:
-                    return TraverseByPostorder();
-                default:
-                    throw new NotSupportedException();
-            }
         }
 
         private IEnumerable<AvlTreeNode> TraverseByPostorder()
@@ -94,7 +96,12 @@ namespace AvlTreeSample
             {
                 var current = stack.Peek();
 
-                if ((current.Left != null || current.Right != null) && current.Left != prev && current.Right != prev)
+                if ((current.Left != null || current.Right != null)
+                    &&
+                    (
+                        prev == null ||
+                        (current.Left != prev && current.Right != prev)
+                    ))
                 {
                     if (current.Right != null)
                     {
@@ -112,83 +119,132 @@ namespace AvlTreeSample
                     prev = current;
                     yield return current;
                 }
-
             }
         }
 
         private IEnumerable<AvlTreeNode> TraverseByInorder()
         {
-            throw new NotImplementedException();
+            var stack = new Stack<AvlTreeNode>();
+
+            stack.Push(Root);
+            var current = Root;
+            bool goFuther = true;
+
+            while(stack.Count > 0)
+            {
+                current = stack.Peek();
+
+                if (goFuther && current.Left != null)
+                {
+                    stack.Push(current.Left);
+                    goFuther = true;
+                    continue;
+                }
+
+                stack.Pop();
+
+                yield return current;
+
+                if (current.Right != null)
+                {
+                    stack.Push(current.Right);
+                    goFuther = true;
+                    continue;
+                }
+
+                goFuther = false;
+            }
         }
 
         private IEnumerable<AvlTreeNode> TraverseByPreorder()
         {
-            throw new NotImplementedException();
+            var stack = new Stack<AvlTreeNode>();
+
+            stack.Push(Root);
+
+            while (stack.Count > 0)
+            {
+                var current = stack.Pop();
+
+                yield return current;
+
+                if (current.Right != null)
+                {
+                    stack.Push(current.Right);
+                }
+
+                if (current.Left != null)
+                {
+                    stack.Push(current.Left);
+                }
+            }
         }
 
-        private void OnBalanceFactorChanging(AvlTreeNode childNode, short balanceFoctorChangeValue)
+        private void OnNewNodeInserted(AvlTreeNode insertion)
         {
             AvlTreeNodePosition lastPos = default;
             AvlTreeNodePosition currentPos = default;
 
             var index = 0;
 
-            var currentNode = childNode.Parent;
-            currentPos = currentNode.Position;
+            var currentNode = insertion.Parent;
+            var prevNode = insertion;
+            currentPos = insertion.Position;
 
             while (currentNode != null)
             {
+                if (prevNode.Position == AvlTreeNodePosition.Left)
+                {
+                    currentNode.LeftHeight = prevNode.Height + 1;
+                }
+                else if (prevNode.Position == AvlTreeNodePosition.Right)
+                {
+                    currentNode.RightHeight = prevNode.Height + 1;
+                }
+
                 index++;
 
-                currentNode.BalanceFator += balanceFoctorChangeValue;
                 if (currentNode.BalanceFator == 2 || currentNode.BalanceFator == -2)
                 {
-                    ResolveRotation(childNode, currentNode, currentPos, lastPos);
-                    return;
+                    currentNode = ResolveRotation(insertion, currentNode, currentPos, lastPos);
                 }
-                else
-                {
-                    lastPos = currentPos;
-                    currentPos = currentNode.Position;
-                    currentNode = currentNode.Parent;
-                    continue;
-                }
+
+                lastPos = currentPos;
+                currentPos = currentNode.Position;
+                prevNode = currentNode;
+                currentNode = currentNode.Parent;
             }
         }
 
-        private void ResolveRotation(AvlTreeNode insertion, AvlTreeNode rotationRoot, AvlTreeNodePosition firstLevelPos, AvlTreeNodePosition secondLevelPos)
+        private AvlTreeNode ResolveRotation(AvlTreeNode insertion, AvlTreeNode rotationRoot, AvlTreeNodePosition firstLevelPos, AvlTreeNodePosition secondLevelPos)
         {
             if (firstLevelPos == AvlTreeNodePosition.Left)
             {
                 if (secondLevelPos == AvlTreeNodePosition.Left)
                 {
-                    DoLeftLeftRotation(insertion, rotationRoot);
-                    return;
+                    return DoLeftLeftRotation(insertion, rotationRoot);
                 }
                 else if (secondLevelPos == AvlTreeNodePosition.Right)
                 {
-                    DoLeftRightRotation(insertion, rotationRoot);
-                    return;
+                    return DoLeftRightRotation(insertion, rotationRoot);
                 }
             }
             else if (firstLevelPos == AvlTreeNodePosition.Right)
             {
                 if (secondLevelPos == AvlTreeNodePosition.Left)
                 {
-                    DoRightLeftRotation(insertion, rotationRoot);
-                    return;
+                    return DoRightLeftRotation(insertion, rotationRoot);
                 }
                 else if (secondLevelPos == AvlTreeNodePosition.Right)
                 {
-                    DoRightRightRotation(insertion, rotationRoot);
-                    return;
+                    return DoRightRightRotation(insertion, rotationRoot);
                 }
             }
 
             throw new NotSupportedException();
         }
 
-        private void DoRightRightRotation(AvlTreeNode insertion, AvlTreeNode rotationRoot)
+        private AvlTreeNode DoRightRightRotation(AvlTreeNode insertion, AvlTreeNode rotationRoot)
         {
             // 当x位于A的左子树的右子树上时，执行RR旋转。
 
@@ -197,40 +253,57 @@ namespace AvlTreeSample
             // 完成旋转以后，将A和right的平衡因子都修改为0。所有其他结点的平衡因子都没有改变。
 
             var right = rotationRoot.Right;
-
-            rotationRoot.Right = right.Left;
-            if (rotationRoot.Right != null)
-            {
-                rotationRoot.Right.Parent = rotationRoot;
-                rotationRoot.Right.Position = AvlTreeNodePosition.Right;
-            }
-
-            right.Left = rotationRoot;
-            right.Left.Parent = right;
-            right.Left.Position = AvlTreeNodePosition.Left;
-
             if (rotationRoot.Position == AvlTreeNodePosition.Left)
             {
-                rotationRoot.Parent.Left = right;
-                rotationRoot.Parent.Left.Parent = rotationRoot.Parent.Left;
-                rotationRoot.Parent.Left.Position = AvlTreeNodePosition.Left;
+                SetLeft(rotationRoot.Parent, right);
             }
             else if (rotationRoot.Position == AvlTreeNodePosition.Right)
             {
-                rotationRoot.Parent.Right = right;
-                rotationRoot.Parent.Right.Parent = rotationRoot.Parent.Right;
-                rotationRoot.Parent.Right.Position = AvlTreeNodePosition.Right;
+                SetRight(rotationRoot.Parent, right);
             }
             else
             {
-                right.Position = AvlTreeNodePosition.NoParent;
+                SetRootNode(right);
             }
 
-            rotationRoot.BalanceFator = 0;
-            right.BalanceFator = 0;
+            SetRight(rotationRoot, right.Left);
+            SetLeft(right, rotationRoot);
+
+            return right;
         }
 
-        private void DoRightLeftRotation(AvlTreeNode insertion, AvlTreeNode rotationRoot)
+        private AvlTreeNode DoLeftLeftRotation(AvlTreeNode insertion, AvlTreeNode rotationRoot)
+        {
+            // 当x位于A的左子树的左子树上时，执行LL旋转。
+
+            // 设left为A的左子树，要执行LL旋转：
+            //   1.将原来指向A的指针指向left
+            //   2.将A的左指针指向left的右子结点
+            //   3.left的右指针指向A
+            // 旋转过后，将A和left的平衡因子都改为0。所有其他结点的平衡因子没有发生变化。
+
+            var left = rotationRoot.Left;
+
+            if (rotationRoot.Position == AvlTreeNodePosition.Left)
+            {
+                SetLeft(rotationRoot.Parent, left);
+            }
+            else if (rotationRoot.Position == AvlTreeNodePosition.Right)
+            {
+                SetRight(rotationRoot.Parent, left);
+            }
+            else
+            {
+                SetRootNode(left);
+            }
+
+            SetLeft(rotationRoot, left.Right);
+            SetRight(left, rotationRoot);
+
+            return left;
+        }
+
+        private AvlTreeNode DoRightLeftRotation(AvlTreeNode insertion, AvlTreeNode rotationRoot)
         {
             // 当x位于A的右子树的左子树上时，执行RL旋转。
 
@@ -245,63 +318,28 @@ namespace AvlTreeSample
             var right = rotationRoot.Right;
             var grandChild = right.Left;
 
-            right.Left = grandChild.Right;
-            right.Left.Parent = right;
-            right.Left.Position = AvlTreeNodePosition.Left;
-
-            grandChild.Right = right;
-            grandChild.Right.Parent = grandChild;
-            grandChild.Right.Position = AvlTreeNodePosition.Right;
-
-            rotationRoot.Right = grandChild.Left;
-            rotationRoot.Right.Parent = rotationRoot;
-            rotationRoot.Right.Position = AvlTreeNodePosition.Right;
-
-            grandChild.Left = rotationRoot;
-            grandChild.Left.Parent = grandChild;
-            grandChild.Left.Position = AvlTreeNodePosition.Left;
-
             if (rotationRoot.Position == AvlTreeNodePosition.Left)
             {
-                rotationRoot.Parent.Left = grandChild;
-                rotationRoot.Parent.Left.Parent = rotationRoot.Parent;
-                rotationRoot.Parent.Left.Position = AvlTreeNodePosition.Left;
+                SetLeft(rotationRoot.Parent, grandChild);
             }
             else if (rotationRoot.Position == AvlTreeNodePosition.Right)
             {
-                rotationRoot.Parent.Right = grandChild;
-                rotationRoot.Parent.Right.Parent = rotationRoot.Parent;
-                rotationRoot.Parent.Right.Position = AvlTreeNodePosition.Right;
+                SetRight(rotationRoot.Parent, grandChild);
             }
             else
             {
-                grandChild.Position = AvlTreeNodePosition.NoParent;
+                SetRootNode(grandChild);
             }
 
-            if (grandChild.BalanceFator == 1)
-            {
-                rotationRoot.BalanceFator = -1;
-                right.BalanceFator = 0;
-            }
-            else if (grandChild.BalanceFator == 0)
-            {
-                rotationRoot.BalanceFator = 0;
-                right.BalanceFator = 0;
-            }
-            else if (grandChild.BalanceFator == -1)
-            {
-                rotationRoot.BalanceFator = 0;
-                right.BalanceFator = 1;
-            }
-            else
-            {
-                throw new NotSupportedException();
-            }
+            SetLeft(right, grandChild.Right);
+            SetRight(grandChild, right);
+            SetRight(rotationRoot, grandChild.Left);
+            SetLeft(grandChild, rotationRoot);
 
-            grandChild.BalanceFator = 0;
+            return grandChild;
         }
 
-        private void DoLeftRightRotation(AvlTreeNode insertion, AvlTreeNode rotationRoot)
+        private AvlTreeNode DoLeftRightRotation(AvlTreeNode insertion, AvlTreeNode rotationRoot)
         {
             // 当x位于A的左子树的右子树上时，执行LR旋转。
 
@@ -316,100 +354,71 @@ namespace AvlTreeSample
             var left = rotationRoot.Left;
             var grandChild = left.Right;
 
-            left.Right = grandChild.Left;
-            left.Right.Parent = left;
-            left.Right.Position = AvlTreeNodePosition.Right;
-
-            grandChild.Left = left;
-            grandChild.Left.Parent = grandChild;
-            grandChild.Left.Position = AvlTreeNodePosition.Left;
-
-            rotationRoot.Left = grandChild.Right;
-            rotationRoot.Left.Parent = rotationRoot;
-            rotationRoot.Left.Position = AvlTreeNodePosition.Left;
-
-            grandChild.Right = rotationRoot;
-            grandChild.Right.Parent = grandChild;
-            grandChild.Right.Position = AvlTreeNodePosition.Right;
-
             if (rotationRoot.Position == AvlTreeNodePosition.Left)
             {
-                rotationRoot.Parent.Left = grandChild;
-                rotationRoot.Parent.Left.Parent = rotationRoot.Parent;
-                rotationRoot.Parent.Left.Position = AvlTreeNodePosition.Left;
+                SetLeft(rotationRoot.Parent, grandChild);
             }
             else if (rotationRoot.Position == AvlTreeNodePosition.Right)
             {
-                rotationRoot.Parent.Right = grandChild;
-                rotationRoot.Parent.Right.Parent = rotationRoot.Parent;
-                rotationRoot.Parent.Right.Position = AvlTreeNodePosition.Right;
+                SetRight(rotationRoot.Parent, grandChild);
             }
             else
             {
-                grandChild.Position = AvlTreeNodePosition.NoParent;
+                SetRootNode(grandChild);
             }
 
-            if (grandChild.BalanceFator == 1)
-            {
-                rotationRoot.BalanceFator = -1;
-                left.BalanceFator = 0;
-            }
-            else if (grandChild.BalanceFator == 0)
-            {
-                rotationRoot.BalanceFator = 0;
-                left.BalanceFator = 0;
-            }
-            else if (grandChild.BalanceFator == -1)
-            {
-                rotationRoot.BalanceFator = 0;
-                left.BalanceFator = 1;
-            }
-            else
-            {
-                throw new NotSupportedException();
-            }
+            SetRight(left, grandChild.Left);
+            SetLeft(grandChild, left);
+            SetLeft(rotationRoot, grandChild.Right);
+            SetRight(grandChild, rotationRoot);
 
-            grandChild.BalanceFator = 0;
+            return grandChild;
         }
 
-        private void DoLeftLeftRotation(AvlTreeNode insertion, AvlTreeNode rotationRoot)
+        private void SetRootNode(AvlTreeNode node)
         {
-            // 当x位于A的左子树的左子树上时，执行LL旋转。
-
-            // 设left为A的左子树，要执行LL旋转，将A的左指针指向left的右子结点，left的右指针指向A，将原来指向A的指针指向left。
-            // 旋转过后，将A和left的平衡因子都改为0。所有其他结点的平衡因子没有发生变化。
-
-            var left = rotationRoot.Left;
-            rotationRoot.Left = left.Right;
-            if (rotationRoot.Left != null)
+            if (node == null)
             {
-                rotationRoot.Left.Parent = rotationRoot;
-                rotationRoot.Left.Position = AvlTreeNodePosition.Left;
+                throw new ArgumentNullException();
             }
 
-            left.Right = rotationRoot;
-            left.Right.Parent = left;
-            left.Right.Position = AvlTreeNodePosition.Right;
-            
-            if (rotationRoot.Position == AvlTreeNodePosition.Left)
+            node.Parent = null;
+            node.Position = AvlTreeNodePosition.NoParent;
+            Root = node;
+        }
+
+        private void SetLeft(AvlTreeNode parent, AvlTreeNode child)
+        {
+            SetChild(parent, child, AvlTreeNodePosition.Left);
+        }
+
+        private void SetRight(AvlTreeNode parent, AvlTreeNode child)
+        {
+            SetChild(parent, child, AvlTreeNodePosition.Right);
+        }
+
+        private void SetChild(AvlTreeNode parent, AvlTreeNode child, AvlTreeNodePosition position)
+        {
+            if (parent == null)
             {
-                rotationRoot.Parent.Left = left;
-                rotationRoot.Parent.Left.Parent = rotationRoot.Parent.Left;
-                rotationRoot.Parent.Left.Position = AvlTreeNodePosition.Left;
+                position = AvlTreeNodePosition.NoParent;
             }
-            else if (rotationRoot.Position == AvlTreeNodePosition.Right)
+            else if (position == AvlTreeNodePosition.Left)
             {
-                rotationRoot.Parent.Right = left;
-                rotationRoot.Parent.Right.Parent = rotationRoot.Parent.Right;
-                rotationRoot.Parent.Right.Position = AvlTreeNodePosition.Right;
+                parent.Left = child;
+                parent.LeftHeight = (child?.Height ?? -1) + 1;
             }
-            else
+            else if (position == AvlTreeNodePosition.Right)
             {
-                left.Position = AvlTreeNodePosition.NoParent;
+                parent.Right = child;
+                parent.RightHeight = (child?.Height ?? -1) + 1;
             }
 
-            rotationRoot.BalanceFator = 0;
-            left.BalanceFator = 0;
+            if (child != null)
+            {
+                child.Position = position;
+                child.Parent = parent;
+            }
         }
 
         private void InitRoot(int value)
@@ -421,12 +430,13 @@ namespace AvlTreeSample
         {
             var newNode = new AvlTreeNode
             {
-                BalanceFator = 0,
                 Left = null,
                 Parent = parent,
                 Right = null,
                 Value = value,
-                Position = position
+                Position = position,
+                LeftHeight = 0,
+                RightHeight = 0
             };
 
             if (position == AvlTreeNodePosition.Left)
