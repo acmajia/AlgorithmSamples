@@ -24,10 +24,10 @@ namespace AvlTreeSample
             avlTree.PrintVertical();
             Console.WriteLine();
 
-            // works just with a small amount nodes (<=10)
-            Console.WriteLine($"Horizontal view:");
-            avlTree.PrintHorizontal();
-            Console.WriteLine();
+            // works just with a small amount of nodes
+            //Console.WriteLine($"Horizontal view:");
+            //avlTree.PrintHorizontal();
+            //Console.WriteLine();
 
             Console.WriteLine($"Traverse by preorder");
             foreach (var i in avlTree.Traverse(AvlTreeTraverseType.Preorder))
@@ -54,7 +54,7 @@ namespace AvlTreeSample
 
         static int[] GenerateRamdomSequenceIntegers()
         {
-            int n = 1_000_000;
+            int n = 20;
             var random = new Random();
             Console.WriteLine("Generating {0} random elements...", n);
             var numbers = Enumerable.Range(0, n).Select(x => random.Next());
