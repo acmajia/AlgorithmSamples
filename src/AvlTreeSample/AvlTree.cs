@@ -47,11 +47,6 @@ namespace AvlTreeSample
 
             while (true)
             {
-                if (value == currentNode.Value)
-                {
-                    throw new ArgumentException($"Value '{value}' already exists in the tree.");
-                }
-
                 if (value > currentNode.Value)
                 {
                     if (currentNode.Right == null)
